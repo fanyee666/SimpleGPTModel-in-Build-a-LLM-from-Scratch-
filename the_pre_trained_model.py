@@ -3,7 +3,16 @@
 
 本文件演示如何：
 1. 根据配置创建 GPTModel 实例
-2. 下载并加载 OpenAI 官方 GPT-2 预训练权重
+2."""
+加载 OpenAI GPT-2 预训练权重并生成文本的脚本。
+
+本文件演示如何：
+1. 根据配置创建 GPTModel 实例
+2. 从本地加载 OpenAI 官方 GPT-2 预训练权重（gpt_download.py 已修改为
+   优先检查本地文件，齐全时直接加载，跳过网络下载）
+3. 将权重映射到自定义模型架构
+4. 使用 top-k + temperature 采样生成文本
+"""
 3. 将权重映射到自定义模型架构
 4. 使用 top-k + temperature 采样生成文本
 """
@@ -40,7 +49,13 @@ gpt.eval();
 # 优先使用 GPU，否则回退到 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 从 OpenAI 公开存储桶下载 GPT-2 检查点文件并加载参数
+# 从本地加载 GPT-2 预训练权重。
+# gpt_download.py 已修改为优先检查本地文件，若 gpt2/124M/ 目录下
+# 所有必需文件齐全则直接加载，不再发起网络请求。
+# 如需重新下载权重，可恢复 gpt_download.py 中注释掉的下载逻辑。
+# settings 包含模型超参数（如 n_layer, n_head 等），
+# params 包含实际的权重张量。
+# 注意：settings 变量被解构但后续未被使用，可以考虑用 _ 忽略。
 # settings 包含模型超参数（如 n_layer, n_head 等），
 # params 包含实际的权重张量。
 # 注意：settings 变量被解构但后续未被使用，可以考虑用 _ 忽略。
