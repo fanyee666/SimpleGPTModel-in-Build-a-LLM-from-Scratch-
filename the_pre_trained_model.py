@@ -69,7 +69,7 @@ load_weights_into_gpt(gpt, params)
 gpt.to(device);
 
 # 固定随机种子以保证生成结果可复现
-torch.manual_seed(123)
+# torch.manual_seed(123)
 
 # 初始化 GPT-2 的 tiktoken 分词器（与 OpenAI 预训练时使用的编码一致）
 tokenizer = tiktoken.get_encoding("gpt2")
@@ -78,7 +78,7 @@ tokenizer = tiktoken.get_encoding("gpt2")
 token_ids = generate(
     model=gpt,
     idx=text_to_token_ids("Every effort moves you", tokenizer).to(device),
-    max_new_tokens=25,           # 最多生成 25 个新 token
+    max_new_tokens=50,           # 最多生成 25 个新 token
     context_size=NEW_CONFIG["context_length"],  # 模型最大上下文长度（1024）
     top_k=50,                    # 仅保留概率最高的前 50 个 token
     temperature=1.5              # 温度 >1 使分布更平坦，输出更多样化
