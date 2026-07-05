@@ -20,3 +20,11 @@ model_configs = {
     "gpt2-large (774M)": {"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
     "gpt2-xl (1558M)": {"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
 }
+
+# 识别垃圾邮件中的基础配置
+BASE_CONFIG = {
+    "vocab_size": 50257,     # Vocabulary size
+    "context_length": 1024,  # Context length
+    "drop_rate": 0.0,        # Dropout rate
+    "qkv_bias": True         # Query-key-value bias
+}
