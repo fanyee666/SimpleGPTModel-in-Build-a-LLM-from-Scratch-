@@ -1,5 +1,5 @@
 """
-本文件用于加载垃圾邮件数据集，做一个预处理
+本文件用于加载垃圾邮件数据集，做一个数据预处理
 """
 import pandas as pd
 import os
@@ -52,14 +52,14 @@ def random_split(df, train_frac, validation_frac):
 train_df, validation_df, test_df = random_split(balanced_df, 0.7, 0.1)
 
 # 将三个数据集存为csv文件
-# if(not(os.path.exists('./data/sms+spam+collection/train.csv'))):
-#     train_df.to_csv("./data/sms+spam+collection/train.csv", index=None)
-# if(not(os.path.exists('./data/sms+spam+collection/validation.csv'))):
-#     validation_df.to_csv("./data/sms+spam+collection/validation.csv", index=None)
-# if(not(os.path.exists('./data/sms+spam+collection/test.csv'))):
-#     test_df.to_csv("./data/sms+spam+collection/test.csv", index=None)
+if(not(os.path.exists('./data/sms+spam+collection/train.csv'))):
+    train_df.to_csv("./data/sms+spam+collection/train.csv", index=None)
+if(not(os.path.exists('./data/sms+spam+collection/validation.csv'))):
+    validation_df.to_csv("./data/sms+spam+collection/validation.csv", index=None)
+if(not(os.path.exists('./data/sms+spam+collection/test.csv'))):
+    test_df.to_csv("./data/sms+spam+collection/test.csv", index=None)
 
-train_df.to_csv("./data/sms+spam+collection/train.csv", index=None)
-validation_df.to_csv("./data/sms+spam+collection/validation.csv", index=None)
-test_df.to_csv("./data/sms+spam+collection/test.csv", index=None)
+# train_df.to_csv("./data/sms+spam+collection/train.csv", index=None)
+# validation_df.to_csv("./data/sms+spam+collection/validation.csv", index=None)
+# test_df.to_csv("./data/sms+spam+collection/test.csv", index=None)
 

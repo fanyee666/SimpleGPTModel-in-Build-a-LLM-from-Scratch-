@@ -8,9 +8,7 @@
 
 import os
 import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #把上级目录加载进来
 
 import torch
 import tiktoken

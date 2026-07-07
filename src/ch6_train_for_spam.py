@@ -291,6 +291,9 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
 # Overall the same as `train_model_simple` in chapter 5
 def train_classifier_simple(model, train_loader, val_loader, optimizer, device, num_epochs,
                             eval_freq, eval_iter):
+    """
+    训练模型
+    """
     # Initialize lists to track losses and examples seen
     train_losses, val_losses, train_accs, val_accs = [], [], [], []
     examples_seen, global_step = 0, -1
@@ -410,4 +413,5 @@ print("The second test is " +classify_review(
 """
 这么长的文件目的就是这一行，将模型保存下来
 """
-torch.save(model.state_dict(), "./gpt2/spam_classifier/review_classifier.pth")
+if not os.path.exists("./gpt2/spam_classifier/review_classifier.pth"):
+    torch.save(model.state_dict(), "./gpt2/spam_classifier/review_classifier.pth")

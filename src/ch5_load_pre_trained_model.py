@@ -16,7 +16,9 @@
 3. 将权重映射到自定义模型架构
 4. 使用 top-k + temperature 采样生成文本
 """
-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #把上级目录加载进来
 from simple_gpt import config
 from simple_gpt.model import GPTModel
 from loadPretrainingWeights.gpt_download import download_and_load_gpt2
@@ -75,9 +77,11 @@ torch.manual_seed(123)
 tokenizer = tiktoken.get_encoding("gpt2")
 
 # 将起始文本编码为 token ID 并送入设备，然后调用生成函数
+input_text = "The weather is good, let's"
+
 token_ids = generate(
     model=gpt,
-    idx=text_to_token_ids("Every effort moves you", tokenizer).to(device),
+    idx=text_to_token_ids(input_text, tokenizer).to(device),
     max_new_tokens=15,           # 最多生成 15 个新 token
     context_size=NEW_CONFIG["context_length"],  # 模型最大上下文长度（1024）
     top_k=50,                    # 仅保留概率最高的前 50 个 token
