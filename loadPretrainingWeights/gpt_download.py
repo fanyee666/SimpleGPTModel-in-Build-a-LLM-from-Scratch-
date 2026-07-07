@@ -8,26 +8,22 @@
 # 原始下载逻辑已注释保留，如需重新下载可取消注释。
 
 import os
-
-# import urllib.request  # 保留但不再使用，本地加载不需要网络请求
+import urllib.request  # 恢复：用于下载缺失的权重文件
 # import requests        # 保留备用
 import json
 import numpy as np
 import tensorflow as tf
-# from tqdm import tqdm  # 保留但不再使用，本地加载不需要进度条
+from tqdm import tqdm  # 恢复：下载进度条
 
 
 def download_and_load_gpt2(model_size, models_dir):
     """
     加载 GPT-2 预训练权重。
 
-    修改后的逻辑：
-    1. 先检查本地 models_dir/model_size/ 目录下是否已有完整的权重文件
-    2. 如果齐全，直接调用 TensorFlow 加载本地 checkpoint，跳过所有网络请求
-    3. 如果不齐全，抛出 FileNotFoundError，提示用户手动补全文件
-
-    原始下载逻辑（从 Azure Blob Storage 下载）已注释保留在下方，
-    如需重新下载可取消注释恢复。
+    逻辑：
+    1. 检查本地 models_dir/model_size/ 目录下是否已有完整的权重文件
+    2. 只下载缺失的文件（已存在且大小一致则跳过）
+    3. 全部齐全后加载本地 checkpoint
 
     Args:
         model_size: 模型尺寸，可选 "124M" / "355M" / "774M" / "1558M"
@@ -37,22 +33,20 @@ def download_and_load_gpt2(model_size, models_dir):
         settings: 从 hparams.json 读取的模型超参数字典
         params: 解析后的权重参数嵌套字典
     """
-    # Validate model size
     allowed_sizes = ("124M", "355M", "774M", "1558M")
     if model_size not in allowed_sizes:
         raise ValueError(f"Model size not in {allowed_sizes}")
 
-    # Define paths
     model_dir = os.path.join(models_dir, model_size)
+    os.makedirs(model_dir, exist_ok=True)
+
+    base_url = "https://openaipublic.blob.core.windows.net/gpt-2/models"
     filenames = [
         "checkpoint", "encoder.json", "hparams.json",
         "model.ckpt.data-00000-of-00001", "model.ckpt.index",
         "model.ckpt.meta", "vocab.bpe"
     ]
 
-    # ------------------------------------------------------------------
-    # 新增：本地文件完整性检查 —— 如果齐全则直接加载，跳过下载
-    # ------------------------------------------------------------------
     missing_files = []
     for filename in filenames:
         file_path = os.path.join(model_dir, filename)
@@ -60,78 +54,45 @@ def download_and_load_gpt2(model_size, models_dir):
             missing_files.append(filename)
 
     if missing_files:
-        # 本地文件不完整，抛出清晰错误（不再尝试联网下载，避免超时）
-        raise FileNotFoundError(
-            f"本地 GPT-2 {model_size} 权重文件不完整，缺少以下文件：\n"
-            + "\n".join(f"  - {f}" for f in missing_files)
-            + f"\n\n请确保以下所有文件存在于目录：{model_dir}\n"
-            + "或手动从 OpenAI 公开存储桶下载后放置到该目录。\n"
-            + "（原始自动下载逻辑已注释保留在本文件中，可取消注释恢复。）"
-        )
+        print(f"[INFO] 本地缺失 {len(missing_files)} 个文件，开始下载...")
+        for filename in missing_files:
+            file_url = f"{base_url}/{model_size}/{filename}"
+            file_path = os.path.join(model_dir, filename)
+            download_file(file_url, file_path)
+        print(f"[INFO] 下载完成: {model_dir}")
+    else:
+        print(f"[INFO] 本地权重文件已齐全，直接加载: {model_dir}")
 
-    # 文件齐全，直接加载本地权重
-    print(f"[INFO] 本地权重文件已齐全，直接加载: {model_dir}")
     tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
     settings = json.load(open(os.path.join(model_dir, "hparams.json")))
     params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
     return settings, params
 
-    # ------------------------------------------------------------------
-    # 原始下载逻辑（已注释保留）
-    # ------------------------------------------------------------------
-    # base_url = "https://openaipublic.blob.core.windows.net/gpt-2/models"
-    # os.makedirs(model_dir, exist_ok=True)
-    # for filename in filenames:
-    #     file_url = os.path.join(base_url, model_size, filename)
-    #     file_path = os.path.join(model_dir, filename)
-    #     download_file(file_url, file_path)
-    #
-    # # Load settings and params
-    # tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
-    # settings = json.load(open(os.path.join(model_dir, "hparams.json")))
-    # params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
-    #
-    # return settings, params
 
+def download_file(url, destination):
+    """
+    从指定 URL 下载文件到本地路径，支持断点续传检查。
+    """
+    with urllib.request.urlopen(url) as response:
+        file_size = int(response.headers.get("Content-Length", 0))
 
-# ------------------------------------------------------------------
-# 原始下载辅助函数（已注释保留）
-# ------------------------------------------------------------------
+        # 断点续传：如果本地文件已存在且大小一致，跳过下载
+        if os.path.exists(destination):
+            file_size_local = os.path.getsize(destination)
+            if file_size == file_size_local:
+                print(f"  [SKIP] 文件已存在: {os.path.basename(destination)}")
+                return
 
-# def download_file(url, destination):
-#     """
-#     从指定 URL 下载文件到本地路径，支持断点续传检查。
-#
-#     注意：此函数需要联网访问 Azure Blob Storage，在国内网络环境下
-#     可能连接超时或速度极慢。本地文件已齐全时不会调用此函数。
-#     """
-#     # Send a GET request to download the file
-#     with urllib.request.urlopen(url) as response:
-#         # Get the total file size from headers, defaulting to 0 if not present
-#         file_size = int(response.headers.get("Content-Length", 0))
-#
-#         # Check if file exists and has the same size
-#         if os.path.exists(destination):
-#             file_size_local = os.path.getsize(destination)
-#             if file_size == file_size_local:
-#                 print(f"File already exists and is up-to-date: {destination}")
-#                 return
-#
-#         # Define the block size for reading the file
-#         block_size = 1024  # 1 Kilobyte
-#
-#         # Initialize the progress bar with total file size
-#         progress_bar_description = os.path.basename(url)  # Extract filename from URL
-#         with tqdm(total=file_size, unit="iB", unit_scale=True, desc=progress_bar_description) as progress_bar:
-#             # Open the destination file in binary write mode
-#             with open(destination, "wb") as file:
-#                 # Read the file in chunks and write to destination
-#                 while True:
-#                     chunk = response.read(block_size)
-#                     if not chunk:
-#                         break
-#                     file.write(chunk)
-#                     progress_bar.update(len(chunk))  # Update progress bar
+        block_size = 1024
+        progress_bar_description = os.path.basename(url)
+        with tqdm(total=file_size, unit="iB", unit_scale=True, desc=progress_bar_description) as progress_bar:
+            with open(destination, "wb") as file:
+                while True:
+                    chunk = response.read(block_size)
+                    if not chunk:
+                        break
+                    file.write(chunk)
+                    progress_bar.update(len(chunk))
 
 
 def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):

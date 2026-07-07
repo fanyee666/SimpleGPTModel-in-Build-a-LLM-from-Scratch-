@@ -77,6 +77,7 @@ torch.manual_seed(123)
 tokenizer = tiktoken.get_encoding("gpt2")
 
 # 将起始文本编码为 token ID 并送入设备，然后调用生成函数
+print(f"使用设备：{device}")
 input_text = "The weather is good, let's"
 
 token_ids = generate(
