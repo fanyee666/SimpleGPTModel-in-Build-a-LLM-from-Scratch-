@@ -184,7 +184,10 @@ test_loader = DataLoader(
 
 from simple_gpt import config
 from loadPretrainingWeights.gpt_download import download_and_load_gpt2
+from loadPretrainingWeights.load_weights import load_weights_into_gpt
 from simple_gpt.model import GPTModel
+from simple_gpt.new_generation_temp_topk import generate
+from simple_gpt.tokenizer import text_to_token_ids,token_ids_to_text
 
 BASE_CONFIG = config.BASE_CONFIG
 model_configs = config.model_configs
@@ -195,4 +198,71 @@ BASE_CONFIG.update(model_configs[CHOOSE_MODEL])
 model_size = CHOOSE_MODEL.split(" ")[-1].lstrip("(").rstrip(")")
 settings, params = download_and_load_gpt2(model_size=model_size, models_dir="gpt2")
 
+# 创建355M的模型
+model = GPTModel(BASE_CONFIG)
+load_weights_into_gpt(model, params)
+model.eval();
 
+# 做一个简单的测试，此时还未训练，只是继续生成文本
+# torch.manual_seed(123)
+input_text = format_input(val_data[0])
+print(input_text)
+
+token_ids = generate(
+    model=model,
+    idx=text_to_token_ids(input_text, tokenizer),
+    max_new_tokens=35,
+    context_size=BASE_CONFIG["context_length"],
+    eos_id=50256,
+)
+generated_text = token_ids_to_text(token_ids, tokenizer)
+response_text = generated_text[len(input_text):].strip()
+print(response_text)
+
+
+# ///////////////////////////////////////////////////////////////////////
+# 现在开始训练，并计时
+# ///////////////////////////////////////////////////////////////////////
+from simple_gpt.training import calc_loss_loader,train_model_simple
+model.to(device)
+
+import time
+start_time = time.time()
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.00005, weight_decay=0.1)
+num_epochs = 2 #只训练两轮
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+    start_context=format_input(val_data[0]), tokenizer=tokenizer
+)
+
+end_time = time.time()
+execution_time_minutes = (end_time - start_time) / 60
+print(f"Training completed in {execution_time_minutes:.2f} minutes.")
+
+
+# 试着测试一下训练后的模型回复结果
+for entry in test_data[:3]:
+
+    input_text = format_input(entry)
+
+    token_ids = generate(
+        model=model,
+        idx=text_to_token_ids(input_text, tokenizer).to(device),
+        max_new_tokens=256,
+        context_size=BASE_CONFIG["context_length"],
+        eos_id=50256
+    )
+    generated_text = token_ids_to_text(token_ids, tokenizer)
+    response_text = generated_text[len(input_text):].replace("### Response:", "").strip()
+
+    print(input_text)
+    print(f"\nCorrect response:\n>> {entry['output']}")
+    print(f"\nModel response:\n>> {response_text.strip()}")
+    print("-------------------------------------")
+
+# 保存微调好后的模型，使用正则表达式提取字典中的相关值作为文件名
+import re
+file_name = f"./gpt2/355M/{re.sub(r'[ ()]', '', CHOOSE_MODEL) }-sft.pth"
+torch.save(model.state_dict(), file_name)
+print(f"Model saved as {file_name}")
